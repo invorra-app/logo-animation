@@ -1,0 +1,249 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Logo animation · v2</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+/* The app's curve (globals.css --ease-out-strong), plus the two v1 added */
+:root{
+  --ease-out-strong:cubic-bezier(0.23,1,0.32,1);
+  --ease-in-out-strong:cubic-bezier(0.77,0,0.175,1);
+  --ease-back:cubic-bezier(0.34,1.56,0.64,1);
+  --slow:1;
+}
+*{box-sizing:border-box} body{margin:0;background:#f4f4f5;color:#18181b;font:14px/1.5 Inter,system-ui,sans-serif;padding:48px 56px 96px}
+h1{font-size:24px;letter-spacing:-.02em;margin:0 0 6px} .lede{color:#52525b;max-width:900px;margin:0 0 28px}
+h2{font-size:15px;font-weight:600;margin:56px 0 4px} .sub{color:#52525b;margin:0 0 4px;max-width:900px}
+code{font-size:12.5px;background:#fff;border:1px solid #e4e4e7;border-radius:5px;padding:1px 5px}
+ul{margin:12px 0 0;padding-left:18px;color:#3f3f46;max-width:900px} li{margin-bottom:10px}
+table{border-collapse:collapse;background:#fff;border:1px solid #e4e4e7;border-radius:14px;overflow:hidden;font-size:13px;max-width:1240px;margin-top:16px}
+th,td{text-align:left;padding:9px 14px;border-bottom:1px solid #f0f0f2;vertical-align:top} th{background:#fafafa;font-weight:500;color:#52525b;font-size:12px}
+td.num{font-variant-numeric:tabular-nums;white-space:nowrap}
+
+/* Stages */
+.stage{position:relative;padding:40px 24px;border-radius:18px;background:#fff;box-shadow:0 0 0 1px rgba(24,24,27,.08),0 12px 32px -12px rgba(24,24,27,.2);display:grid;place-items:center;overflow:hidden;cursor:pointer;color:#18181b}
+.stage.dark{background:#18181b;color:#fafafa;box-shadow:0 0 0 1px rgba(24,24,27,.6),0 12px 32px -12px rgba(24,24,27,.35)}
+.stage .tag{position:absolute;left:16px;top:12px;font-size:12px;font-weight:500;color:#71717a}
+.stage.dark .tag{color:#a1a1aa}
+#hero{width:min(1240px,100%);height:440px;margin-top:20px}
+#hero svg{width:min(760px,78%)}
+.dark-stage{width:min(1240px,100%);height:320px;margin-top:20px}
+.dark-stage svg{width:min(560px,70%)}
+.grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:24px;max-width:1240px;margin-top:20px}
+.grid .stage{height:260px}
+.grid svg{width:112px}
+.grid figcaption{font-size:13px;color:#52525b;margin-top:10px}
+figure{margin:0}
+svg{display:block;height:auto;overflow:visible}
+
+/* Controls */
+.controls{display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin-top:14px;max-width:1240px}
+.controls button,.controls label.chip{font:inherit;font-size:13px;font-weight:500;color:#18181b;background:#fff;border:1px solid #e4e4e7;border-radius:999px;padding:5px 14px;cursor:pointer;display:inline-flex;align-items:center;gap:6px;transition:background-color 150ms ease,border-color 150ms ease}
+.controls button:active{transform:scale(.97);transition:transform 120ms var(--ease-out-strong)}
+@media (hover:hover) and (pointer:fine){.controls button:hover,.controls label.chip:hover{background:#fafafa;border-color:#d4d4d8}}
+.controls label.chip input{margin:0;accent-color:#18181b}
+.controls .scrub{display:flex;align-items:center;gap:10px;margin-left:auto;font-size:12px;color:#52525b}
+.controls input[type=range]{width:320px;accent-color:#18181b}
+.controls output{font-variant-numeric:tabular-nums;min-width:62px;text-align:right}
+
+/* ───────── The reveal ─────────
+   1 · gather: the six hooks draw from their outer tip, clockwise from the top, and fly in
+       along their stems while they draw. They are arrows; they converge on the centre
+   2 · the mark turns a sixth of a turn while they gather (six-fold: it lands on itself), and rests
+   3 · unfold: the mark slides left and the name slides out from behind it. The name's clip edge
+       rides on the mark's right side, so the slide is what reveals the name
+   4 · the i's dot drops in last                                                              */
+.hook{stroke-dasharray:100 120}
+.spin{transform-origin:178.5px 182.448px} /* the hooks' centre, in the SVG's units */
+
+.play .hook{
+  animation:draw calc(600ms*var(--slow)) var(--ease-out-strong) both,
+            appear calc(120ms*var(--slow)) linear both;
+  animation-delay:calc((40ms + var(--i)*50ms)*var(--slow));
+}
+.play .travel{
+  animation:gather calc(600ms*var(--slow)) var(--ease-out-strong) both;
+  animation-delay:calc((40ms + var(--i)*50ms)*var(--slow));
+}
+.play .spin{animation:turn calc(850ms*var(--slow)) var(--ease-out-strong) both}
+.play .slide{animation:slide calc(800ms*var(--slow)) var(--ease-in-out-strong) calc(850ms*var(--slow)) both}
+.play .unfold{animation:unfold calc(800ms*var(--slow)) var(--ease-in-out-strong) calc(850ms*var(--slow)) both}
+.play .dot{
+  animation:drop calc(500ms*var(--slow)) var(--ease-back) both,
+            appear calc(140ms*var(--slow)) linear both;
+  animation-delay:calc(1420ms*var(--slow));
+}
+/* the mark alone (app open): no slide, no name */
+.play.mark-only .slide{animation:none}
+
+@keyframes draw{from{stroke-dashoffset:101}to{stroke-dashoffset:0}}
+@keyframes appear{from{opacity:0}to{opacity:1}}
+@keyframes gather{from{transform:translate(var(--tx),var(--ty))}to{transform:none}}
+@keyframes turn{from{transform:rotate(-60deg)}to{transform:none}}
+@keyframes slide{from{transform:translateX(611px)}to{transform:none}}
+@keyframes unfold{from{transform:translateX(-625px)}to{transform:none}}
+@keyframes drop{from{transform:translateY(-60px)}to{transform:none}}
+
+/* ───────── The loader: draw, hold, erase, a sixth of a turn per cycle ─────────
+   The turn runs over six cycles (a full circle), so it never snaps back mid-stroke, and the
+   hooks wait hidden (fill backwards) until their first cycle starts.                        */
+.loop .hook{
+  animation-name:loopdraw;
+  animation-duration:calc(2400ms*var(--slow));
+  animation-timing-function:var(--ease-in-out-strong);
+  animation-delay:calc(var(--i)*70ms*var(--slow));
+  animation-iteration-count:infinite;
+  animation-fill-mode:backwards;
+}
+.loop .spin{animation:loopturn calc(14400ms*var(--slow)) linear infinite}
+@keyframes loopdraw{0%{stroke-dashoffset:101}42%,62%{stroke-dashoffset:0}100%{stroke-dashoffset:-101}}
+@keyframes loopturn{from{transform:rotate(0)}to{transform:rotate(360deg)}}
+
+/* ───────── Reduced motion: nothing moves, the logo fades in ─────────
+   In the app this is @media (prefers-reduced-motion: reduce); the board's
+   toggle adds .rm so it can be seen without changing the system setting.  */
+.rm .play .hook,.rm .play .travel,.rm .play .spin,.rm .play .slide,.rm .play .unfold,.rm .play .dot{animation:none}
+.rm .play svg.reveal{animation:appear calc(400ms*var(--slow)) ease both}
+.rm .loop .hook,.rm .loop .spin{animation:none}
+.rm .loop svg{animation:breathe calc(1200ms*var(--slow)) ease-in-out infinite alternate}
+@keyframes breathe{from{opacity:1}to{opacity:.4}}
+</style>
+</head>
+<body>
+<h1>Logo animation · v2: the hooks gather, the name unfolds</h1>
+<p class="lede">The six hooks are arrows that point at the centre, so they fly in to it. Each one draws from its outer tip while it travels in along its stem, one after another clockwise from the top, and the mark turns a sixth of a turn as they land. It rests for a beat, complete. Then it slides to its place and "inoova" slides out from behind it, revealed by the mark's own movement. The i's dot drops in last. Under two seconds, in the mark's ink, with no colour and no shadow. Click a stage to play it again.</p>
+
+<section>
+  <div class="stage" id="hero"><span class="tag">Lockup · light</span></div>
+  <div class="controls">
+    <button type="button" id="replay">↻ Replay</button>
+    <label class="chip"><input type="checkbox" id="slow"> Slow ×4</label>
+    <label class="chip"><input type="checkbox" id="rm"> Reduced motion</label>
+    <div class="scrub"><span>Step through</span><input type="range" id="scrub" min="0" max="2000" step="10" value="2000"><output id="scrubOut">2000 ms</output></div>
+  </div>
+</section>
+
+<h2>Dark</h2>
+<p class="sub">The same reveal in white on the app's dark ink.</p>
+<div class="stage dark dark-stage" id="dark"><span class="tag">Lockup · dark</span></div>
+
+<h2>The mark alone</h2>
+<p class="sub">When the app opens on the tablet (POS), and while a long wait loads. The loader draws, holds, erases from the start and turns a sixth each cycle.</p>
+<div class="grid">
+  <figure><div class="stage" id="markIntro"><span class="tag">App open</span></div><figcaption>Steps 1 and 2 only: the hooks gather in 0.9 s, then still.</figcaption></figure>
+  <figure><div class="stage" id="loaderLight"><span class="tag">Loader · light</span></div><figcaption>A 2.4 s cycle; the turn takes six of them, so it never snaps back. Shown only past ~400 ms of waiting.</figcaption></figure>
+  <figure><div class="stage dark" id="loaderDark"><span class="tag">Loader · dark</span></div><figcaption>Reduced motion: no drawing, the mark breathes in opacity.</figcaption></figure>
+</div>
+
+<h2>Timing</h2>
+<table>
+<tr><th>Step</th><th>What moves</th><th>Starts</th><th>Lasts</th><th>Curve</th></tr>
+<tr><td>1</td><td>The six hooks draw from their outer tip to the curl, clockwise from the top, 50 ms apart, and fly 48 units in along their stems while they draw</td><td class="num">40 ms</td><td class="num">600 ms each</td><td><code>--ease-out-strong</code> 0.23, 1, 0.32, 1</td></tr>
+<tr><td>2</td><td>The mark turns −60° → 0 around its centre</td><td class="num">0</td><td class="num">850 ms</td><td><code>--ease-out-strong</code></td></tr>
+<tr><td>3</td><td>The mark slides from the middle to its place at the left, and the name slides 625 units out from behind it; the name's clip edge rides on the mark's right side. Its slow start is the beat where the finished mark rests</td><td class="num">850 ms</td><td class="num">800 ms</td><td><code>--ease-in-out-strong</code> 0.77, 0, 0.175, 1</td></tr>
+<tr><td>4</td><td>The i's dot drops into place as the name settles, a small overshoot</td><td class="num">1,420 ms</td><td class="num">500 ms</td><td><code>--ease-back</code> 0.34, 1.56, 0.64, 1</td></tr>
+<tr><td></td><td><b>Whole reveal</b></td><td></td><td class="num"><b>≈ 1.9 s</b> (v1: 2.1 s)</td><td></td></tr>
+<tr><td></td><td>Reduced motion: the lockup fades in where it rests, nothing moves</td><td class="num">0</td><td class="num">400 ms</td><td><code>ease</code></td></tr>
+</table>
+
+<h2>What changed from v1</h2>
+<ul>
+<li><b>One cause per movement.</b> In v1 the name rose from the baseline on its own while the mark slid away. Here the mark's slide is what uncovers the name, so the lockup reads as one gesture.</li>
+<li><b>The mark finishes before it moves.</b> v1 started the slide at 780 ms, while the last hooks were still drawing and the turn was still settling. Here the hooks have landed and the turn has settled by 850 ms; the slide eases in from there, so the finished mark rests for a beat before it moves.</li>
+<li><b>The hooks converge.</b> They point at the centre, and now they travel to it while they draw, instead of the whole mark growing 90% → 100%.</li>
+<li><b>No grey letters.</b> v1 faded the letters in while they rose, so they passed through grey. The clip already hides them, so the name is in full ink the whole time it shows.</li>
+<li><b>The loader no longer jumps.</b> In v1 the turn snapped back 60° every 2.4 s while three hooks were still on screen, and hooks 2–6 showed fully drawn during their start delay. The turn now spans six cycles, and the hooks wait hidden.</li>
+</ul>
+
+<h2>Where it plays</h2>
+<ul>
+<li><b>The welcome screen and the first sign-in</b>, once per session. The sign-in page shown again (wrong code, back) keeps the logo still.</li>
+<li><b>The POS tablet opening</b>: the mark alone (steps 1 and 2), then the app.</li>
+<li><b>Marketing and the tutorial videos' intro</b>: the full lockup, light or dark (rendered from <code>effectcraft/</code>).</li>
+<li><b>Never</b> on page changes, the sidebar logo or anything opened many times a day.</li>
+<li>Built in CSS only (stroke drawing and transforms, no library). It stays smooth while the app loads behind it.</li>
+</ul>
+
+<script>
+const HOOKS = [
+  "M169.366 19V90.5849C169.366 116.151 155.731 129.786 136.13 110.186L104.599 78.6541",
+  "M315.482 92.8138L253.488 128.606C231.347 141.389 212.721 136.398 219.895 109.623L231.437 66.5507",
+  "M324.616 256.262L262.622 220.47C240.481 207.687 235.49 189.06 262.265 181.886L305.338 170.345",
+  "M187.632 345.896V274.311C187.632 248.745 201.267 235.109 220.868 254.71L252.399 286.241",
+  "M41.5177 272.083L103.512 236.29C125.653 223.507 144.279 228.498 137.105 255.273L125.563 298.346",
+  "M32.3836 108.634L94.378 144.426C116.519 157.209 121.51 175.835 94.7347 183.009L51.662 194.551",
+]
+const STEM = "M489.602 123.801H439V319.838H489.602V123.801Z"
+const DOT = "M489.409 39.9473H439.194V90.1253H489.409V39.9473Z"
+const LETTERS = [
+  [STEM, false],
+  ["M517.603 123.442H567.728V143.063C583.482 127.309 604.964 118.716 629.311 118.716C675.14 118.716 700.919 150.223 700.919 201.781V320.221H649.361V208.942C649.361 180.299 635.04 167.409 612.125 167.409C586.346 167.409 567.728 186.027 567.728 211.806V320.221H517.603V123.442Z", false],
+  ["M830.087 118.716C773.117 118.716 726.92 164.879 726.92 221.832C726.92 278.784 773.117 324.947 830.087 324.947C887.057 324.947 933.249 278.784 933.249 221.832C933.249 164.879 887.08 118.716 830.087 118.716ZM829.904 276.344C799.684 276.344 775.171 251.848 775.171 221.65C775.171 191.451 799.684 166.955 829.904 166.955C860.124 166.955 884.616 191.428 884.616 221.65C884.616 251.87 860.124 276.344 829.904 276.344Z", true],
+  ["M1056.42 118.716C999.446 118.716 953.249 164.879 953.249 221.832C953.249 278.784 999.446 324.947 1056.42 324.947C1113.39 324.947 1159.58 278.784 1159.58 221.832C1159.58 164.879 1113.41 118.716 1056.42 118.716ZM1056.23 276.344C1026.01 276.344 1001.5 251.848 1001.5 221.65C1001.5 191.451 1026.01 166.955 1056.23 166.955C1086.45 166.955 1110.94 191.428 1110.94 221.65C1110.94 251.87 1086.45 276.344 1056.23 276.344Z", true],
+  ["M1173.58 123.442H1228L1265.24 250.905L1302.47 123.442H1356.89L1291.02 320.222H1239.46L1173.58 123.442Z", false],
+  ["M1528.57 123.414V134.294C1512.75 124.441 1494.08 118.716 1474.06 118.716C1417.09 118.716 1370.89 164.879 1370.89 221.832C1370.89 278.784 1417.09 324.947 1474.06 324.947C1494.08 324.947 1512.75 319.245 1528.57 309.37V320.249H1578.78V123.414H1528.57ZM1473.88 276.344C1443.66 276.344 1419.15 251.848 1419.15 221.65C1419.15 191.451 1443.66 166.955 1473.88 166.955C1504.1 166.955 1528.09 190.949 1528.57 220.737V222.538C1528.09 252.327 1503.8 276.32 1473.88 276.32V276.344Z", true],
+]
+// Hook i's stem points at the centre from 60°·i clockwise of the top; it flies in from GATHER units out
+const GATHER = 48
+const out = (i) => [GATHER * Math.sin(i * Math.PI / 3), -GATHER * Math.cos(i * Math.PI / 3)].map((v) => +v.toFixed(3))
+
+const hooks = () => `<g class="spin" fill="none" stroke="currentColor" stroke-width="38" stroke-linecap="round" stroke-linejoin="round">${
+  HOOKS.map((d, i) => { const [tx, ty] = out(i); return `<g class="travel" style="--i:${i};--tx:${tx}px;--ty:${ty}px"><path class="hook" pathLength="100" style="--i:${i}" d="${d}"/></g>` }).join("")}</g>`
+
+let clipN = 0
+function lockup() {
+  const id = `edge${clipN++}`
+  // The name shows only right of the mark's right side (x 344 at rest: hook tips at 324.6 + half the stroke);
+  // the edge carries .slide, so it rides with the mark
+  return `<svg class="reveal" viewBox="0 0 1579 365" role="img" aria-label="inoova">
+    <clipPath id="${id}"><rect class="slide" x="344" y="-400" width="1300" height="1165"/></clipPath>
+    <g class="slide">${hooks()}</g>
+    <g clip-path="url(#${id})"><g class="unfold" fill="currentColor">${
+      LETTERS.map(([d, evenodd]) => `<path d="${d}"${evenodd ? ' fill-rule="evenodd" clip-rule="evenodd"' : ""}/>`).join("")}</g></g>
+    <path class="dot" fill="currentColor" d="${DOT}"/>
+  </svg>`
+}
+const mark = () => `<svg class="reveal" viewBox="0 0 357 365" role="img" aria-label="inoova"><g class="slide">${hooks()}</g></svg>`
+
+const $ = (s) => document.querySelector(s)
+$("#hero").insertAdjacentHTML("beforeend", lockup())
+$("#dark").insertAdjacentHTML("beforeend", lockup())
+$("#markIntro").insertAdjacentHTML("beforeend", mark())
+$("#loaderLight").insertAdjacentHTML("beforeend", mark())
+$("#loaderDark").insertAdjacentHTML("beforeend", mark())
+$("#markIntro").classList.add("mark-only")
+$("#loaderLight").classList.add("loop")
+$("#loaderDark").classList.add("loop")
+
+const intros = ["#hero", "#dark", "#markIntro"].map($)
+const scrub = $("#scrub"), scrubOut = $("#scrubOut")
+const slowFactor = () => ($("#slow").checked ? 4 : 1)
+
+function play(stage) {
+  stage.classList.remove("play")
+  void stage.offsetWidth // restart the CSS animations
+  stage.classList.add("play")
+}
+function playAll() {
+  intros.forEach(play)
+  ;["#loaderLight", "#loaderDark"].forEach((s) => { const el = $(s); el.classList.remove("loop"); void el.offsetWidth; el.classList.add("loop") })
+  scrub.value = scrub.max; scrubOut.value = `${scrub.max} ms`
+}
+intros.forEach((stage) => stage.addEventListener("click", () => play(stage)))
+$("#replay").addEventListener("click", playAll)
+$("#slow").addEventListener("change", () => { document.documentElement.style.setProperty("--slow", slowFactor()); playAll() })
+$("#rm").addEventListener("change", (e) => { document.body.classList.toggle("rm", e.target.checked); playAll() })
+if (matchMedia("(prefers-reduced-motion: reduce)").matches) { $("#rm").checked = true; document.body.classList.add("rm") }
+
+// Step through the hero frame by frame (times are at normal speed)
+scrub.addEventListener("input", () => {
+  const t = +scrub.value
+  scrubOut.value = `${t} ms`
+  $("#hero").getAnimations({ subtree: true }).forEach((a) => { a.pause(); a.currentTime = t * slowFactor() })
+})
+
+playAll()
+</script>
+</body>
+</html>

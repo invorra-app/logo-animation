@@ -7,6 +7,7 @@ Each version lives in its own folder and is never edited once pushed; the next c
 | Version | Board | What it is |
 | --- | --- | --- |
 | [v1](v1/index.html) | `v1/index.html` | Lockup light and dark, the mark alone (app open), the loader, timing table, where it plays |
+| [v2](v2/index.html) | `v2/index.html` | The hooks gather (fly in along their stems as they draw), the mark rests, then the name slides out from behind it; the loader no longer jumps. Videos in `v2/effectcraft/` |
 
 ## Viewing
 
