@@ -1,0 +1,299 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Logo animation · v3</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+/* The app's curve (globals.css --ease-out-strong), the two v1 added, and a pen for the tick */
+:root{
+  --ease-out-strong:cubic-bezier(0.23,1,0.32,1);
+  --ease-in-out-strong:cubic-bezier(0.77,0,0.175,1);
+  --ease-back:cubic-bezier(0.34,1.56,0.64,1);
+  --ease-pen:cubic-bezier(0.55,0,0.25,1);
+  --tilt:45deg; /* the tick alone: its long arm rises to the right at 45°, as the reference ✓'s does */
+  --slow:1;
+}
+*{box-sizing:border-box} body{margin:0;background:#f4f4f5;color:#18181b;font:14px/1.5 Inter,system-ui,sans-serif;padding:48px 56px 96px}
+::selection{background:#18181b;color:#fafafa}
+h1{font-size:24px;letter-spacing:-.02em;margin:0 0 6px} .lede{color:#52525b;max-width:900px;margin:0 0 28px}
+h2{font-size:15px;font-weight:600;margin:56px 0 4px} .sub{color:#52525b;margin:0 0 4px;max-width:900px}
+code{font-size:12.5px;background:#fff;border:1px solid #e4e4e7;border-radius:5px;padding:1px 5px}
+ul{margin:12px 0 0;padding-left:18px;color:#3f3f46;max-width:900px} li{margin-bottom:10px}
+table{border-collapse:collapse;background:#fff;border:1px solid #e4e4e7;border-radius:14px;overflow:hidden;font-size:13px;max-width:1240px;margin-top:16px}
+th,td{text-align:left;padding:9px 14px;border-bottom:1px solid #f0f0f2;vertical-align:top} th{background:#fafafa;font-weight:500;color:#52525b;font-size:12px}
+td.num{font-variant-numeric:tabular-nums;white-space:nowrap} td code{white-space:nowrap}
+
+/* Stages: framed as the videos are, so the board shows the same picture */
+.stage{position:relative;border-radius:18px;background:#fff;box-shadow:0 0 0 1px rgba(24,24,27,.08),0 12px 32px -12px rgba(24,24,27,.2);display:grid;place-items:center;overflow:hidden;cursor:pointer;color:#18181b}
+.stage.dark{background:#18181b;color:#fafafa;box-shadow:0 0 0 1px rgba(24,24,27,.6),0 12px 32px -12px rgba(24,24,27,.35)}
+.stage .tag{position:absolute;left:16px;top:12px;z-index:1;font-size:12px;font-weight:500;color:#71717a}
+.stage.dark .tag{color:#a1a1aa}
+.wide{width:min(1240px,100%);aspect-ratio:16/9;margin-top:20px}
+.wide svg{width:57.55%}   /* 1105 of 1920 px, as in the video */
+.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:24px;max-width:1240px;margin-top:20px}
+.square{aspect-ratio:1}
+.square svg{width:39.67%} /* 428 of 1080 px, as in the video */
+.grid figcaption{font-size:13px;color:#52525b;margin-top:10px}
+figure{margin:0}
+svg{display:block;height:auto;overflow:visible}
+
+/* Controls */
+.controls{display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin-top:14px;max-width:1240px}
+.controls button,.controls label.chip{font:inherit;font-size:13px;font-weight:500;color:#18181b;background:#fff;border:1px solid #e4e4e7;border-radius:999px;padding:5px 14px;cursor:pointer;display:inline-flex;align-items:center;gap:6px;transition:background-color 150ms ease,border-color 150ms ease}
+.controls button:active{transform:scale(.97);transition:transform 120ms var(--ease-out-strong)}
+.controls button:focus-visible,.controls input:focus-visible{outline:2px solid #18181b;outline-offset:2px}
+@media (hover:hover) and (pointer:fine){.controls button:hover,.controls label.chip:hover{background:#fafafa;border-color:#d4d4d8}}
+.controls label.chip input{margin:0;accent-color:#18181b}
+.controls .scrub{display:flex;align-items:center;gap:10px;margin-left:auto;font-size:12px;color:#52525b}
+.controls input[type=range]{width:320px;accent-color:#18181b}
+.controls output{font-variant-numeric:tabular-nums;min-width:62px;text-align:right}
+
+/* ───────── The reveal ─────────
+   The mark is one tick turned six times about its centre, so the reveal starts with the one tick.
+   1 · write: the tick is written as a ✓, the way a hand writes one, short arm first, through the curl,
+       up the long arm: arms at a right angle, the long one rising to the right at 45°
+   2 · pull back: the view scales from the tick to the mark, exponentially, about the one point that
+       stays put on screen (the camera's transform-origin); the mark turns on 45° → 60° into its place,
+       and the ✓ closes into the hook: its short arm turns in 45° and its stem draws in (the d morph)
+   3 · split: a copy swings 60° out of the tick, clockwise, then a copy out of that one, 100 ms
+       apart, five times; each copy turns in the one before it, so the turns add up and the circle closes
+   4 · unfold (as v2): the mark slides left and the name slides out from behind it; the name's clip
+       edge rides on the mark's right side, so the slide is what reveals the name
+   5 · the i's dot drops in last                                                                    */
+.write{stroke-dasharray:100 120}
+.turn{transform-origin:178.5px 182.448px;transform:rotate(60deg)} /* the mark's centre, in the SVG's units */
+.spin{transform-origin:178.5px 182.448px;transform:rotate(60deg)} /* six-fold: at 60° the mark lands on itself */
+.camera{transform-origin:var(--fx) var(--fy)}
+
+.play .tick{animation:close calc(1000ms*var(--slow)) var(--ease-in-out-strong) calc(1050ms*var(--slow)) both}
+.play .write{
+  animation:draw calc(650ms*var(--slow)) var(--ease-pen) calc(150ms*var(--slow)) both,
+            close calc(1000ms*var(--slow)) var(--ease-in-out-strong) calc(1050ms*var(--slow)) both;
+}
+.play .camera{animation:zoom calc(1100ms*var(--slow)) var(--zoom-ease) calc(1050ms*var(--slow)) both}
+.play .spin{animation:spin calc(1100ms*var(--slow)) var(--ease-in-out-strong) calc(1050ms*var(--slow)) both}
+.play .turn{animation:turn calc(400ms*var(--slow)) var(--ease-out-strong) calc((1250ms + var(--n)*100ms)*var(--slow)) both}
+.play .turn.first{
+  animation:turn calc(400ms*var(--slow)) var(--ease-out-strong) calc(1250ms*var(--slow)) both,
+            appear 1ms linear calc(1250ms*var(--slow)) both; /* the copies wait hidden under the tick */
+}
+.play .slide{animation:slide calc(800ms*var(--slow)) var(--ease-in-out-strong) calc(2050ms*var(--slow)) both}
+.play .unfold{animation:unfold calc(800ms*var(--slow)) var(--ease-in-out-strong) calc(2050ms*var(--slow)) both}
+.play .dot{
+  animation:drop calc(500ms*var(--slow)) var(--ease-back) both,
+            appear calc(140ms*var(--slow)) linear both;
+  animation-delay:calc(2620ms*var(--slow));
+}
+/* the mark alone: no slide, no name */
+.play.mark-only .slide{animation:none}
+
+@keyframes draw{from{stroke-dashoffset:101}to{stroke-dashoffset:0}}
+@keyframes appear{from{opacity:0}to{opacity:1}}
+@keyframes zoom{from{transform:scale(var(--k0))}to{transform:none}}
+@keyframes spin{from{transform:rotate(var(--tilt))}to{transform:rotate(60deg)}}
+@keyframes close{from{d:var(--open)}to{d:var(--closed)}} /* the ✓ and the hook, set by the script */
+@keyframes turn{from{transform:none}to{transform:rotate(60deg)}}
+@keyframes slide{from{transform:translateX(611px)}to{transform:none}}
+@keyframes unfold{from{transform:translateX(-625px)}to{transform:none}}
+@keyframes drop{from{transform:translateY(-60px)}to{transform:none}}
+
+/* ───────── Reduced motion: nothing moves, the logo fades in ─────────
+   In the app this is @media (prefers-reduced-motion: reduce); the board's
+   toggle adds .rm so it can be seen without changing the system setting.  */
+.rm .play .tick,.rm .play .write,.rm .play .camera,.rm .play .spin,.rm .play .turn,.rm .play .slide,.rm .play .unfold,.rm .play .dot{animation:none}
+.rm .play svg.reveal{animation:appear calc(400ms*var(--slow)) ease both}
+</style>
+</head>
+<body>
+<h1>Logo animation · v3: one tick, turned six times</h1>
+<p class="lede">The mark is a single tick turned six times around its centre. The video opens on that tick as the check it stands for: a ✓ written large the way a hand writes one, short arm first, its long arm rising to the right at 45°. As the view pulls back, the check closes into the hook, its short arm turning in and its stem drawing in, and the mark turns on into its place. Then the tick splits. A copy swings a sixth of a turn out of it, then a copy swings out of that one, five times around, and the circle closes as the mark reaches its size. It rests for a beat, then unfolds as in v2: the mark slides to its place and "inoova" slides out from behind it, and the i's dot drops in last. About three seconds, in the mark's ink, with no colour and no shadow. Click a stage to play it again.</p>
+
+<section>
+  <div class="stage wide" id="hero"><span class="tag">Lockup · light</span></div>
+  <div class="controls">
+    <button type="button" id="replay">↻ Replay</button>
+    <label class="chip"><input type="checkbox" id="slow"> Slow ×4</label>
+    <label class="chip"><input type="checkbox" id="rm"> Reduced motion</label>
+    <div class="scrub"><label for="scrub">Step through</label><input type="range" id="scrub" min="0" max="3200" step="10" value="3200"><output id="scrubOut" for="scrub">3200 ms</output></div>
+  </div>
+</section>
+
+<h2>Dark</h2>
+<p class="sub">The same reveal in white on the app's dark ink.</p>
+<div class="stage dark wide" id="dark"><span class="tag">Lockup · dark</span></div>
+
+<h2>The mark alone</h2>
+<p class="sub">Steps 1 to 3: the tick, the pull-back and the split, then still. For square and vertical formats, and anywhere the name is already on screen.</p>
+<div class="grid">
+  <figure><div class="stage square" id="markLight"><span class="tag">Mark · light</span></div><figcaption>The circle closes at about 2 s.</figcaption></figure>
+  <figure><div class="stage square dark" id="markDark"><span class="tag">Mark · dark</span></div><figcaption>Reduced motion: no drawing and no turning, the mark fades in.</figcaption></figure>
+</div>
+
+<h2>Timing</h2>
+<table>
+<tr><th>Step</th><th>What moves</th><th>Starts</th><th>Lasts</th><th>Curve</th></tr>
+<tr><td>1</td><td>The tick is written as a ✓, short arm first, at 3.6 px a unit: arms at a right angle, the long arm rising to the right at 45° and about 2.5 times the short one, as in the reference. It holds for a beat on its own</td><td class="num">150 ms</td><td class="num">650 ms</td><td><code>--ease-pen</code> 0.55, 0, 0.25, 1</td></tr>
+<tr><td>2</td><td>The view pulls back from the tick to the mark (×5.1 in the lockup, ×3 for the mark alone), in equal ratios of size, so the eye sees one speed. The mark turns on 45° → 60°, so the tick lands in the next place clockwise; six-fold, the mark lands on itself</td><td class="num">1,050 ms</td><td class="num">1,100 ms</td><td><code>--ease-in-out-strong</code> 0.77, 0, 0.175, 1</td></tr>
+<tr><td></td><td>The ✓ closes into the hook: its short arm turns 45° in about the curl and its stem draws in 45 units. The copies split off already closing, so they are always the same shape as the tick</td><td class="num">1,050 ms</td><td class="num">1,000 ms</td><td><code>--ease-in-out-strong</code></td></tr>
+<tr><td>3</td><td>Five copies split off, each swinging 60° clockwise out of the one before it, 100 ms apart. The last one rides on all five turns, so it sweeps the furthest and the fastest</td><td class="num">1,250 ms</td><td class="num">400 ms each, 800 ms in all</td><td><code>--ease-out-strong</code> 0.23, 1, 0.32, 1</td></tr>
+<tr><td>4</td><td>As v2: the mark slides from the middle to its place at the left, and the name slides 625 units out from behind it; the name's clip edge rides on the mark's right side. Its slow start is the beat where the finished mark rests</td><td class="num">2,050 ms</td><td class="num">800 ms</td><td><code>--ease-in-out-strong</code></td></tr>
+<tr><td>5</td><td>The i's dot drops into place as the name settles, a small overshoot</td><td class="num">2,620 ms</td><td class="num">500 ms</td><td><code>--ease-back</code> 0.34, 1.56, 0.64, 1</td></tr>
+<tr><td></td><td><b>Whole reveal</b></td><td></td><td class="num"><b>≈ 3.1 s</b> (v2: 1.9 s)</td><td></td></tr>
+<tr><td></td><td>Reduced motion: the lockup fades in where it rests, nothing moves</td><td class="num">0</td><td class="num">400 ms</td><td><code>ease</code></td></tr>
+</table>
+
+<h2>What changed from v2</h2>
+<ul>
+<li><b>It starts from one tick.</b> v2 drew all six hooks at once, so the mark arrived as a finished pattern. v3 shows what the pattern is made of, one tick, before it shows the pattern.</li>
+<li><b>The tick is written, not unrolled.</b> v2 drew each hook from the tip of its stem, as the app's path runs. A hand writes a tick the other way, short arm first, so v3 draws it in that direction, on a pen's curve rather than a UI curve.</li>
+<li><b>The circle is made by turning.</b> The six hooks are the one tick turned 60°·i about the centre, to 0.002 units, so v3 draws just that tick and turns copies of it into place. The copies are nested, so each swings out of the one before it and the mark stays a single gesture going round.</li>
+<li><b>The tick is a check first.</b> On its own the hook does not read as a check: upright, as it sits in the mark, it reads as a J, and turned to a check's angle it reads as a ν, because its arms are only 45° apart and its stem is short. So it is written as the ✓ it stands for, arms at a right angle and the long one rising at 45°, and closes into the hook on its way into the mark.</li>
+<li><b>A small turn, the way the split goes.</b> From 45° the nearest place in the mark is the next one clockwise, so the mark turns on 15° as the view pulls back, in the direction the copies then swing. v2 turned it 60° the other way.</li>
+<li><b>The unfold is v2's.</b> The slide, the name's clip edge and the dot are unchanged, only later.</li>
+</ul>
+
+<h2>Where it plays</h2>
+<ul>
+<li><b>The videos' intros</b>, marketing and tutorials: the full lockup, light or dark, and the mark alone for square formats. Rendered from <code>effectcraft/</code>.</li>
+<li><b>In the app, v2 stays.</b> At about 3 s, v3 is a title sequence. The welcome screen and the POS opening keep v2's 1.9 s reveal and its loader.</li>
+</ul>
+
+<script>
+// The top hook of logo.jsx, reversed so it runs the way a hand writes a tick: short arm, curl, stem
+const TICK = "M104.599 78.6541L136.13 110.186C155.731 129.786 169.366 116.151 169.366 90.5849V19"
+const DOT = "M489.409 39.9473H439.194V90.1253H489.409V39.9473Z"
+const LETTERS = [
+  ["M489.602 123.801H439V319.838H489.602V123.801Z", false],
+  ["M517.603 123.442H567.728V143.063C583.482 127.309 604.964 118.716 629.311 118.716C675.14 118.716 700.919 150.223 700.919 201.781V320.221H649.361V208.942C649.361 180.299 635.04 167.409 612.125 167.409C586.346 167.409 567.728 186.027 567.728 211.806V320.221H517.603V123.442Z", false],
+  ["M830.087 118.716C773.117 118.716 726.92 164.879 726.92 221.832C726.92 278.784 773.117 324.947 830.087 324.947C887.057 324.947 933.249 278.784 933.249 221.832C933.249 164.879 887.08 118.716 830.087 118.716ZM829.904 276.344C799.684 276.344 775.171 251.848 775.171 221.65C775.171 191.451 799.684 166.955 829.904 166.955C860.124 166.955 884.616 191.428 884.616 221.65C884.616 251.87 860.124 276.344 829.904 276.344Z", true],
+  ["M1056.42 118.716C999.446 118.716 953.249 164.879 953.249 221.832C953.249 278.784 999.446 324.947 1056.42 324.947C1113.39 324.947 1159.58 278.784 1159.58 221.832C1159.58 164.879 1113.41 118.716 1056.42 118.716ZM1056.23 276.344C1026.01 276.344 1001.5 251.848 1001.5 221.65C1001.5 191.451 1026.01 166.955 1056.23 166.955C1086.45 166.955 1110.94 191.428 1110.94 221.65C1110.94 251.87 1086.45 276.344 1056.23 276.344Z", true],
+  ["M1173.58 123.442H1228L1265.24 250.905L1302.47 123.442H1356.89L1291.02 320.222H1239.46L1173.58 123.442Z", false],
+  ["M1528.57 123.414V134.294C1512.75 124.441 1494.08 118.716 1474.06 118.716C1417.09 118.716 1370.89 164.879 1370.89 221.832C1370.89 278.784 1417.09 324.947 1474.06 324.947C1494.08 324.947 1512.75 319.245 1528.57 309.37V320.249H1578.78V123.414H1528.57ZM1473.88 276.344C1443.66 276.344 1419.15 251.848 1419.15 221.65C1419.15 191.451 1443.66 166.955 1473.88 166.955C1504.1 166.955 1528.09 190.949 1528.57 220.737V222.538C1528.09 252.327 1503.8 276.32 1473.88 276.32V276.344Z", true],
+]
+const SLIDE = 611                    // the mark starts this far right: the middle of the lockup
+const TICK_PX = 3.6                  // the tick alone, in px a unit of the video (the lockup is at 0.7, the mark alone at 1.2)
+
+// ───────── The ✓ ─────────
+// The tick alone is the reference's ✓: the hook with its short arm opened OPEN° about the curl's
+// start (a right angle between the arms) and its stem REACH units longer, turned TILT° clockwise
+// about the mark's centre so the long arm rises to the right at 45°. It closes back to the hook.
+const TILT = 45, OPEN = 45, REACH = 45
+const MARK_CENTRE = [178.5, 182.448]
+function tickGeometry(open, reach) {
+  const B = [136.13, 110.186], c = Math.cos(-open * Math.PI / 180), s = Math.sin(-open * Math.PI / 180)
+  const turn = (v) => [B[0] + c * v[0] - s * v[1], B[1] + s * v[0] + c * v[1]]
+  return { A: turn([104.599 - B[0], 78.6541 - B[1]]), B, B1: turn([155.731 - B[0], 129.786 - B[1]]),
+           C2: [169.366, 116.151], C: [169.366, 90.5849], D: [169.366, 19 - reach] }
+}
+function tickPath(open, reach) {
+  const g = tickGeometry(open, reach), f = (p) => `${+p[0].toFixed(4)} ${+p[1].toFixed(4)}`
+  return `M${f(g.A)}L${f(g.B)}C${f(g.B1)} ${f(g.C2)} ${f(g.C)}V${+g.D[1].toFixed(4)}`
+}
+// The middle of the box round the tick's centreline, turned `deg`° about the mark's centre
+function tickCentre(deg, open, reach) {
+  const c = Math.cos(deg * Math.PI / 180), s = Math.sin(deg * Math.PI / 180), g = tickGeometry(open, reach)
+  const P = [g.B, g.B1, g.C2, g.C], pts = [g.A, g.D]
+  for (let k = 0; k <= 200; k++) {
+    const u = k / 200, w = [(1 - u) ** 3, 3 * (1 - u) ** 2 * u, 3 * (1 - u) * u * u, u ** 3]
+    pts.push([0, 1].map((d) => w[0] * P[0][d] + w[1] * P[1][d] + w[2] * P[2][d] + w[3] * P[3][d]))
+  }
+  const q = pts.map(([x, y]) => [MARK_CENTRE[0] + c * (x - MARK_CENTRE[0]) - s * (y - MARK_CENTRE[1]), MARK_CENTRE[1] + s * (x - MARK_CENTRE[0]) + c * (y - MARK_CENTRE[1])])
+  return [0, 1].map((d) => (Math.min(...q.map((p) => p[d])) + Math.max(...q.map((p) => p[d]))) / 2)
+}
+document.documentElement.style.setProperty("--open", `path("${tickPath(OPEN, REACH)}")`)
+document.documentElement.style.setProperty("--closed", `path("${TICK}")`)
+
+// ───────── The pull-back ─────────
+// The camera scales by k from k0 to 1 about F, the one point that stays put on screen:
+// F + k0·(tick − F) = the frame's centre.  Its scale is exponential, k = k0^(1 − e) with e the
+// curve's progress, written as a linear() timing function on a plain scale(k0) → scale(1).
+const IN_OUT_STRONG = [0.77, 0, 0.175, 1]
+function bez(c, u) { const a = 3 * (1 - u) * (1 - u) * u, b = 3 * (1 - u) * u * u, d = u * u * u; return [a * c[0] + b * c[2] + d, a * c[1] + b * c[3] + d] }
+function progress(c, x) { let lo = 0, hi = 1; for (let n = 0; n < 40; n++) { const m = (lo + hi) / 2; if (bez(c, m)[0] < x) lo = m; else hi = m } return bez(c, (lo + hi) / 2)[1] }
+function zoomEase(k0) {
+  const pts = []
+  for (let j = 0; j <= 80; j++) {
+    const x = j / 80, q = (Math.pow(k0, 1 - progress(IN_OUT_STRONG, x)) - k0) / (1 - k0)
+    pts.push(`${+q.toFixed(4)} ${+(x * 100).toFixed(2)}%`)
+  }
+  return `linear(${pts.join(", ")})`
+}
+function camera(k0, tick, centre) {
+  const F = [0, 1].map((d) => +((k0 * tick[d] - centre[d]) / (k0 - 1)).toFixed(3))
+  return `--fx:${F[0]}px;--fy:${F[1]}px;--k0:${+k0.toFixed(5)};--zoom-ease:${zoomEase(k0)}`
+}
+
+// ───────── The mark: the tick, then five copies, each nested in the one before ─────────
+function mark() {
+  let copies = ""
+  for (let n = 4; n >= 0; n--) copies = `<g class="turn${n === 0 ? " first" : ""}" style="--n:${n}"><path class="tick" d="${TICK}"/>${copies}</g>`
+  return `<g class="spin" fill="none" stroke="currentColor" stroke-width="38" stroke-linecap="round" stroke-linejoin="round"><path class="tick write" pathLength="100" d="${TICK}"/>${copies}</g>`
+}
+const START = tickCentre(TILT, OPEN, REACH) // where the ✓ is while it is alone
+
+let clipN = 0
+function lockup() {
+  const id = `edge${clipN++}`
+  // The name shows only right of the mark's right side (x 344 at rest: tick tips at 324.6 + half the stroke);
+  // the edge carries .slide, so it rides with the mark
+  const cam = camera(TICK_PX / 0.7, [START[0] + SLIDE, START[1]], [789.5, 182.5])
+  return `<svg class="reveal" viewBox="0 0 1579 365" role="img" aria-label="inoova">
+    <clipPath id="${id}"><rect class="slide" x="344" y="-400" width="1300" height="1165"/></clipPath>
+    <g class="camera" style="${cam}">
+      <g class="slide">${mark()}</g>
+      <g clip-path="url(#${id})"><g class="unfold" fill="currentColor">${
+        LETTERS.map(([d, evenodd]) => `<path d="${d}"${evenodd ? ' fill-rule="evenodd" clip-rule="evenodd"' : ""}/>`).join("")}</g></g>
+      <path class="dot" fill="currentColor" d="${DOT}"/>
+    </g>
+  </svg>`
+}
+function markAlone() {
+  const cam = camera(TICK_PX / 1.2, START, [178.5, 182.5])
+  return `<svg class="reveal" viewBox="0 0 357 365" role="img" aria-label="inoova"><g class="camera" style="${cam}"><g class="slide">${mark()}</g></g></svg>`
+}
+
+const $ = (s) => document.querySelector(s)
+$("#hero").insertAdjacentHTML("beforeend", lockup())
+$("#dark").insertAdjacentHTML("beforeend", lockup())
+$("#markLight").insertAdjacentHTML("beforeend", markAlone())
+$("#markDark").insertAdjacentHTML("beforeend", markAlone())
+$("#markLight").classList.add("mark-only")
+$("#markDark").classList.add("mark-only")
+
+const stages = ["#hero", "#dark", "#markLight", "#markDark"].map($)
+const scrub = $("#scrub"), scrubOut = $("#scrubOut")
+const slowFactor = () => ($("#slow").checked ? 4 : 1)
+
+function play(stage) {
+  stage.classList.remove("play")
+  void stage.offsetWidth // restart the CSS animations
+  stage.classList.add("play")
+}
+function playAll() {
+  stages.forEach(play)
+  scrub.value = scrub.max; scrubOut.value = `${scrub.max} ms`
+}
+// Freeze stages at t ms of the reveal (normal speed)
+function seek(els, t) {
+  els.forEach((el) => el.getAnimations({ subtree: true }).forEach((a) => { a.pause(); a.currentTime = t * slowFactor() }))
+}
+stages.forEach((stage) => stage.addEventListener("click", () => play(stage)))
+$("#replay").addEventListener("click", playAll)
+$("#slow").addEventListener("change", () => { document.documentElement.style.setProperty("--slow", slowFactor()); playAll() })
+$("#rm").addEventListener("change", (e) => { document.body.classList.toggle("rm", e.target.checked); playAll() })
+if (matchMedia("(prefers-reduced-motion: reduce)").matches) { $("#rm").checked = true; document.body.classList.add("rm") }
+
+scrub.addEventListener("input", () => {
+  const t = +scrub.value
+  scrubOut.value = `${t} ms`
+  seek([$("#hero")], t)
+})
+
+playAll()
+// index.html?t=1450 holds every stage at 1450 ms, for stills
+const still = new URLSearchParams(location.search).get("t")
+if (still !== null) { seek(stages, +still); scrub.value = +still; scrubOut.value = `${+still} ms` }
+</script>
+</body>
+</html>
